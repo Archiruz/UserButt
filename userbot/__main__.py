@@ -9,7 +9,7 @@ from importlib import import_module
 from sys import argv
 
 from telethon.errors.rpcerrorlist import PhoneNumberInvalidError
-from userbot import LOGS, bot
+from userbot import LOGS, bot, BOTLOG_CHATID
 from userbot.modules import ALL_MODULES
 
 
@@ -26,13 +26,16 @@ except PhoneNumberInvalidError:
 for module_name in ALL_MODULES:
     imported_module = import_module("userbot.modules." + module_name)
 
-
-LOGS.info("You are running Userbutt [ver : MORE & MORE]")
-
 LOGS.info(
     "Congratulations, your userbot is now running !!"
-    "Test it by typing .alive, .on or .alive in any chat."
+    "Test it by type .on or .alive in any chat."
     "for further assistance, head to https://t.me/userbotindo")
+
+if not BOTLOG_CHATID:
+    LOGS.warning(
+        "Yout BOTLOG_CHATID isn't set yet."
+        "this variable is highly recomended to fill to make sure"
+        "all errors go to your log chat not current chat and considered as a spammer.")
 
 
 if len(argv) not in (1, 3, 4):

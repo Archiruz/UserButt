@@ -11,8 +11,15 @@ from random import choice, randint
 
 from telethon.events import StopPropagation
 
-from userbot import (AFKREASON, COUNT_MSG, CMD_HELP, ISAFK, BOTLOG,
-                     BOTLOG_CHATID, USERS, PM_AUTO_BAN)
+from userbot import (
+    AFKREASON,
+    COUNT_MSG,
+    CMD_HELP,
+    ISAFK,
+    BOTLOG_CHATID,
+    USERS,
+    PM_AUTO_BAN)  # pylint: disable=unused-imports
+
 from userbot.events import register
 
 # ========================= CONSTANTS ============================
@@ -41,11 +48,6 @@ AFKSTR = [
     "Life is so short, there are so many things to do...\nI'm away doing one of them..",
     "I am not here right now...\nbut if I was...\n\nwouldn't that be awesome?",
 ]
-
-global USER_AFK  # pylint:disable=E0602
-global afk_time  # pylint:disable=E0602
-global afk_start
-global afk_end
 USER_AFK = {}
 afk_time = None
 afk_start = {}
@@ -53,7 +55,7 @@ afk_start = {}
 # =================================================================
 
 
-@register(outgoing=True, pattern="^.afk(?: |$)(.*)", disable_errors=True)
+@register(outgoing=True, pattern=r"\.afk(?: |$)(.*)", disable_errors=True)
 async def set_afk(afk_e):
     """For .afk command, allows you to inform people that you are afk when they message you"""
     afk_e.text
@@ -75,7 +77,7 @@ async def set_afk(afk_e):
         \nReason: `{string}`")
     else:
         await afk_e.edit("Going AFK!")
-    if BOTLOG:
+    if BOTLOG_CHATID:
         await afk_e.client.send_message(BOTLOG_CHATID, "#AFK\nYou went AFK!")
     ISAFK = True
     afk_time = datetime.now()  # pylint:disable=E0602
@@ -100,20 +102,27 @@ async def type_afk_is_not_true(notafk):
         msg = await notafk.respond("I'm no longer AFK.")
         time.sleep(3)
         await msg.delete()
-        if BOTLOG:
+        if BOTLOG_CHATID:
             await notafk.client.send_message(
                 BOTLOG_CHATID,
                 "You've recieved " + str(COUNT_MSG) + " messages from " +
                 str(len(USERS)) + " chats while you were away",
             )
             for i in USERS:
-                name = await notafk.client.get_entity(i)
-                name0 = str(name.first_name)
-                await notafk.client.send_message(
-                    BOTLOG_CHATID,
-                    "[" + name0 + "](tg://user?id=" + str(i) + ")" +
-                    " sent you " + "`" + str(USERS[i]) + " messages`",
-                )
+                if str(i).isnumeric():
+                    name = await notafk.client.get_entity(i)
+                    name0 = str(name.first_name)
+                    await notafk.client.send_message(
+                        BOTLOG_CHATID,
+                        "[" + name0 + "](tg://user?id=" + str(i) + ")" +
+                        " sent you " + "`" + str(USERS[i]) + " message(s)`",
+                    )
+                else:  # anon admin
+                    await notafk.client.send_message(
+                        BOTLOG_CHATID,
+                        "Anonymous admin in `" + i + "` sent you " + "`" +
+                        str(USERS[i]) + " message(s)`",
+                    )
         COUNT_MSG = 0
         USERS = {}
         AFKREASON = None
@@ -132,11 +141,7 @@ async def mention_afk(mention):
     back_alivee = datetime.now()
     afk_end = back_alivee.replace(microsecond=0)
     afk_since = "a while ago"
-    if (
-        mention.message.mentioned
-        and not (await mention.get_sender()).bot
-        and ISAFK
-    ):
+    if ISAFK and mention.message.mentioned:
         now = datetime.now()
         datime_since_afk = now - afk_time  # pylint:disable=E0602
         time = float(datime_since_afk.seconds)
@@ -164,13 +169,25 @@ async def mention_afk(mention):
             afk_since = f"`{int(minutes)}m{int(seconds)}s` ago"
         else:
             afk_since = f"`{int(seconds)}s` ago"
-        if mention.sender_id not in USERS:
+
+        is_bot = False
+        if (sender := await mention.get_sender()):
+            is_bot = sender.bot
+            if is_bot: return  # ignore bot
+
+        chat_obj = await mention.client.get_entity(mention.chat_id)
+        chat_title = chat_obj.title
+
+        if mention.sender_id not in USERS or chat_title not in USERS:
             if AFKREASON:
                 await mention.reply(f"I'm AFK since {afk_since}.\
                         \nReason: `{AFKREASON}`")
             else:
                 await mention.reply(str(choice(AFKSTR)))
-            USERS.update({mention.sender_id: 1})
+            if mention.sender_id is not None:
+                USERS.update({mention.sender_id: 1})
+            else:
+                USERS.update({chat_title: 1})
         else:
             if USERS[mention.sender_id] % randint(2, 4) == 0:
                 if AFKREASON:
@@ -178,8 +195,11 @@ async def mention_afk(mention):
                             \nReason: `{AFKREASON}`")
                 else:
                     await mention.reply(str(choice(AFKSTR)))
-            USERS[mention.sender_id] = USERS[mention.sender_id] + 1
-        COUNT_MSG = COUNT_MSG + 1
+            if mention.sender_id is not None:
+                USERS[mention.sender_id] += 1
+            else:
+                USERS[chat_title] += 1
+        COUNT_MSG += 1
 
 
 @register(incoming=True, disable_errors=True)

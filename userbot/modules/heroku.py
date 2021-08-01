@@ -17,7 +17,6 @@ from userbot import (
     CMD_HELP,
     HEROKU_APP_NAME,
     HEROKU_API_KEY,
-    BOTLOG,
     BOTLOG_CHATID
 )
 
@@ -48,7 +47,7 @@ async def variable(var):
         variable = var.pattern_match.group(2)
         if variable != '':
             if variable in heroku_var:
-                if BOTLOG:
+                if BOTLOG_CHATID:
                     await var.client.send_message(
                         BOTLOG_CHATID, "#CONFIGVAR\n\n"
                         "**ConfigVar**:\n"
@@ -57,14 +56,14 @@ async def variable(var):
                     await var.edit("`Received to BOTLOG_CHATID...`")
                     return True
                 else:
-                    await var.edit("`Please set BOTLOG to True...`")
+                    await var.edit("`Please set BOTLOG_CHATID...`")
                     return False
             else:
                 await var.edit("`Information don't exists...`")
                 return True
         else:
             configvars = heroku_var.to_dict()
-            if BOTLOG:
+            if BOTLOG_CHATID:
                 msg = ''
                 for item in configvars:
                     msg += f"`{item}` = `{configvars[item]}`\n"
@@ -76,7 +75,7 @@ async def variable(var):
                 await var.edit("`Received to BOTLOG_CHATID...`")
                 return True
             else:
-                await var.edit("`Please set BOTLOG to True...`")
+                await var.edit("`Please set BOTLOG_CHATID...`")
                 return False
     elif exe == "del":
         await var.edit("`Deleting information...`")
@@ -85,7 +84,7 @@ async def variable(var):
             await var.edit("`Specify ConfigVars you want to del...`")
             return False
         if variable in heroku_var:
-            if BOTLOG:
+            if BOTLOG_CHATID:
                 await var.client.send_message(
                     BOTLOG_CHATID, "#DELCONFIGVAR\n\n"
                     "**Delete ConfigVar**:\n"
@@ -100,11 +99,14 @@ async def variable(var):
 
 @register(outgoing=True, pattern=r'^.set var (\w*) ([\s\S]*)')
 async def set_var(var):
+    if app is None:
+        return await var.edit("`[HEROKU]\nPlease setup your`  "
+                       "**HEROKU_APP_NAME** and ***HEROKU_API_KEY**.")
     await var.edit("`Setting information...`")
     variable = var.pattern_match.group(1)
     value = var.pattern_match.group(2)
     if variable in heroku_var:
-        if BOTLOG:
+        if BOTLOG_CHATID:
             await var.client.send_message(
                 BOTLOG_CHATID, "#SETCONFIGVAR\n\n"
                 "**Change ConfigVar**:\n"
@@ -112,7 +114,7 @@ async def set_var(var):
             )
         await var.edit("`Information sets...`")
     else:
-        if BOTLOG:
+        if BOTLOG_CHATID:
             await var.client.send_message(
                 BOTLOG_CHATID, "#ADDCONFIGVAR\n\n"
                 "**Add ConfigVar**:\n"
@@ -128,6 +130,9 @@ async def set_var(var):
 @register(outgoing=True, pattern=r"^.usage(?: |$)")
 async def dyno_usage(dyno):
     """Get your account Dyno Usage"""
+    if app is None:
+        return await dyno.edit("`[HEROKU]\nPlease setup your`  "
+                       "**HEROKU_APP_NAME** and ***HEROKU_API_KEY**.")
     await dyno.edit("`Getting Information...`")
     user_id = Heroku.account().id
     path = "/accounts/" + user_id + "/actions/get-quota"
@@ -192,13 +197,9 @@ async def dyno_usage(dyno):
 
 @register(outgoing=True, pattern=r"^\.logs")
 async def _(dyno):
-    try:
-        Heroku = heroku3.from_key(HEROKU_API_KEY)
-        app = Heroku.app(HEROKU_APP_NAME)
-    except BaseException:
-        return await dyno.reply(
-            "`Please make sure your Heroku API Key, Your App name are configured correctly in the heroku var.`"
-        )
+    if app is None:
+        await dyno.edit("`[HEROKU]\nPlease setup your`  "
+                       "**HEROKU_APP_NAME** and ***HEROKU_API_KEY**.")
     await dyno.edit("`Getting Logs....`")
     with open("logs.txt", "w") as log:
         log.write(app.get_log())

@@ -5,6 +5,7 @@
 #
 """ Userbot module for getting information about the server. """
 
+import asyncio
 import platform
 import sys
 from asyncio import create_subprocess_exec as asyncrunapp
@@ -18,6 +19,7 @@ import psutil
 from telethon import __version__, version
 from git import Repo
 
+from telethon.errors.rpcerrorlist import MediaEmptyError
 from userbot import CMD_HELP, ALIVE_NAME, ALIVE_LOGO, bot
 from userbot.events import register
 
@@ -28,7 +30,7 @@ modules = CMD_HELP
 # ============================================
 
 
-@register(outgoing=True, pattern=r"^\.spc")
+@register(outgoing=True, pattern=r"\.spc")
 async def psu(event):
     uname = platform.uname()
     softw = "**System Information**\n"
@@ -86,7 +88,7 @@ def get_size(bytes, suffix="B"):
         bytes /= factor
 
 
-@register(outgoing=True, pattern=r"^\.sysd$")
+@register(outgoing=True, pattern=r"\.sysd$")
 async def sysdetails(sysd):
     """For .sysd command, get system info using neofetch."""
     if not sysd.text[0].isalpha() and sysd.text[0] not in ("/", "#", "@", "!"):
@@ -107,7 +109,7 @@ async def sysdetails(sysd):
             await sysd.edit("`Install neofetch first !!`")
 
 
-@register(outgoing=True, pattern="^.botver$")
+@register(outgoing=True, pattern=r"\.botver$")
 async def bot_ver(event):
     """For .botver command, get the bot version."""
     if not event.text[0].isalpha() and event.text[0] not in ("/", "#", "@",
@@ -137,19 +139,28 @@ async def bot_ver(event):
             revout = str(stdout.decode().strip()) \
                 + str(stderr.decode().strip())
 
-        await event.edit("`Userbot Version: "
-                         f"{verout}"
-                         "` \n"
-                         "`Revision: "
-                         f"{revout}"
-                         "`")
+            com = await asyncrunapp(
+                "git",
+                "log",
+                "--pretty='%h : %s'",
+                "-1",
+                stdout=asyncPIPE,
+                stderr=asyncPIPE,
+            )
+            stdout, stderr = await com.communicate()
+            comout = str(stdout.decode().strip()) \
+                + str(stderr.decode().strip())
+
+        await event.edit(f"`Userbot Version: {verout}`\n"
+                         f"`Revision: {revout}`\n"
+                         f"`Latest commit: {comout}`")
     else:
         await event.edit(
             "Shame that you don't have git, You're running 9.0 - 'Extended' anyway"
         )
 
 
-@register(outgoing=True, pattern="^.pip(?: |$)(.*)")
+@register(outgoing=True, pattern=r"\.pip(?: |$)(.*)")
 async def pipcheck(pip):
     """For .pip command, do a pip search."""
     if pip.text[0].isalpha() or pip.text[0] in ("/", "#", "@", "!"):
@@ -194,7 +205,7 @@ async def pipcheck(pip):
         await pip.edit("`Use .help pip to see an example`")
 
 
-@register(outgoing=True, pattern=r"^\.(?:alive|on)\s?(.)?")
+@register(outgoing=True, pattern=r"\.(?:alive|on)\s?(.)?")
 async def amireallyalive(alive):
     """For .alive command, check if the bot is running."""
     output = ("`At your services...`\n"
@@ -207,14 +218,23 @@ async def amireallyalive(alive):
               f"🧩 `Loaded modules :` {len(modules)}\n"
               "`=================================`")
     if ALIVE_LOGO:
-        logo = ALIVE_LOGO
-        await bot.send_file(alive.chat_id, logo, caption=output)
-        await alive.delete()
+        try:
+            logo = ALIVE_LOGO
+            await alive.delete()
+            msg = await bot.send_file(alive.chat_id, logo, caption=output)
+        except MediaEmptyError:
+            msg = await alive.edit(output + "\n\n *`The provided logo is invalid."
+                                   "\nMake sure the link is directed to the logo picture`")
     else:
-        await alive.edit(output)
+        msg = await alive.edit(output)
+    await asyncio.sleep(45)
+    try:
+        await msg.delete()
+    except BaseException:
+        return
 
 
-@register(outgoing=True, pattern="^.aliveu")
+@register(outgoing=True, pattern=r"\.aliveu")
 async def amireallyaliveuser(username):
     """For .aliveu command, change the username in the .alive command."""
     message = username.text
@@ -227,7 +247,7 @@ async def amireallyaliveuser(username):
     await username.edit("`" f"{output}" "`")
 
 
-@register(outgoing=True, pattern="^.resetalive$")
+@register(outgoing=True, pattern=r"\.resetalive$")
 async def amireallyalivereset(ureset):
     """For .resetalive command, reset the username in the .alive command."""
     global DEFAULTUSER
