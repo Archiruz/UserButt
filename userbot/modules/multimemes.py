@@ -7,7 +7,6 @@
 #
 # Based code + improve from AdekMaulana and aidilaryanto
 
-import asyncio
 from asyncio.exceptions import TimeoutError
 import re
 import random
@@ -271,12 +270,6 @@ async def waifu(animu):
 def deEmojify(inputString: str) -> str:
     return re.sub(EMOJI_PATTERN, '', inputString)
 
-
-CMD_HELP.update({
-    "memify":
-    "`.mmf` <text_top> ; <textbottom>"
-    "\nUsage: Reply a sticker/image/gif and send with cmd."
-})
 
 CMD_HELP.update({
     "hazmat":
